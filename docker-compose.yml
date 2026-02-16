@@ -4,7 +4,7 @@ services:
       context: .
       dockerfile: Dockerfile
     image: gemini-business2api:local
-    container_name: gemini-business2api
+    container_name: gemini-business2api-local
     ports:
       - "7861:7861"
     volumes:
