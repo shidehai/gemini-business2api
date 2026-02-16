@@ -1444,6 +1444,7 @@ async def admin_get_settings(request: Request):
             "api_key": config.basic.api_key,
             "base_url": config.basic.base_url,
             "proxy_for_auth": config.basic.proxy_for_auth,
+            "proxy_pool_url": config.basic.proxy_pool_url,
             "proxy_for_chat": config.basic.proxy_for_chat,
             "duckmail_base_url": config.basic.duckmail_base_url,
             "duckmail_api_key": config.basic.duckmail_api_key,
@@ -1507,6 +1508,11 @@ async def admin_update_settings(request: Request, new_settings: dict = Body(...)
 
     try:
         basic = dict(new_settings.get("basic") or {})
+        basic.setdefault("api_key", config.basic.api_key)
+        basic.setdefault("base_url", config.basic.base_url)
+        basic.setdefault("proxy_for_auth", config.basic.proxy_for_auth)
+        basic.setdefault("proxy_pool_url", config.basic.proxy_pool_url)
+        basic.setdefault("proxy_for_chat", config.basic.proxy_for_chat)
         basic.setdefault("duckmail_base_url", config.basic.duckmail_base_url)
         basic.setdefault("duckmail_api_key", config.basic.duckmail_api_key)
         basic.setdefault("duckmail_verify_ssl", config.basic.duckmail_verify_ssl)
@@ -2839,5 +2845,5 @@ async def not_found_handler(request: Request, exc: HTTPException):
 
 if __name__ == "__main__":
     import uvicorn
-    port = int(os.getenv("PORT", "7860"))
+    port = int(os.getenv("PORT", "7861"))
     uvicorn.run(app, host="0.0.0.0", port=port)

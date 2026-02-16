@@ -13,7 +13,7 @@ from core.config import config
 from core.mail_providers import create_temp_mail_client
 from core.gemini_automation import GeminiAutomation
 from core.microsoft_mail_client import MicrosoftMailClient
-from core.proxy_utils import parse_proxy_setting
+from core.proxy_utils import parse_proxy_setting, resolve_auth_proxy
 
 logger = logging.getLogger("gemini.login")
 
@@ -191,7 +191,7 @@ class LoginService(BaseTaskService[LoginTask]):
         mail_client_id = account.get("mail_client_id")
         mail_refresh_token = account.get("mail_refresh_token")
         mail_tenant = account.get("mail_tenant") or "consumers"
-        proxy_for_auth, _ = parse_proxy_setting(config.basic.proxy_for_auth)
+        proxy_for_auth = resolve_auth_proxy(config.basic.proxy_for_auth, config.basic.proxy_pool_url)
 
         def log_cb(level, message):
             self._append_log(task, level, f"[{account_id}] {message}")

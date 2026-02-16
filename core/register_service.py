@@ -11,7 +11,7 @@ from core.base_task_service import BaseTask, BaseTaskService, TaskCancelledError
 from core.config import config
 from core.mail_providers import create_temp_mail_client
 from core.gemini_automation import GeminiAutomation
-from core.proxy_utils import parse_proxy_setting
+from core.proxy_utils import parse_proxy_setting, resolve_auth_proxy
 
 logger = logging.getLogger("gemini.register")
 
@@ -198,7 +198,7 @@ class RegisterService(BaseTaskService[RegisterTask]):
         log_cb("info", f"✅ 邮箱注册成功: {client.email}")
 
         headless = config.basic.browser_headless
-        proxy_for_auth, _ = parse_proxy_setting(config.basic.proxy_for_auth)
+        proxy_for_auth = resolve_auth_proxy(config.basic.proxy_for_auth, config.basic.proxy_pool_url)
 
         log_cb("info", f"🌐 步骤 2/3: 启动浏览器 (无头模式={headless})...")
 

@@ -1,7 +1,7 @@
 from typing import Callable, Optional
 
 from core.config import config
-from core.proxy_utils import extract_host, no_proxy_matches, parse_proxy_setting
+from core.proxy_utils import extract_host, no_proxy_matches, parse_proxy_setting, resolve_auth_proxy
 from core.duckmail_client import DuckMailClient
 from core.freemail_client import FreemailClient
 from core.gptmail_client import GPTMailClient
@@ -26,10 +26,14 @@ def create_temp_mail_client(
     """
     provider = (provider or "duckmail").lower()
     if proxy is None:
-        proxy_source = config.basic.proxy_for_auth if config.basic.mail_proxy_enabled else ""
+        if config.basic.mail_proxy_enabled:
+            proxy = resolve_auth_proxy(config.basic.proxy_for_auth, config.basic.proxy_pool_url)
+            _, no_proxy = parse_proxy_setting(config.basic.proxy_for_auth)
+        else:
+            proxy = ""
+            no_proxy = ""
     else:
-        proxy_source = proxy
-    proxy, no_proxy = parse_proxy_setting(proxy_source)
+        proxy, no_proxy = parse_proxy_setting(proxy)
 
     if provider == "moemail":
         effective_base_url = base_url or config.basic.moemail_base_url

@@ -13,9 +13,13 @@ NO_PROXY 格式:
 """
 
 import re
+import logging
 from typing import Tuple, Callable, Any, Optional
 from urllib.parse import urlparse
 import functools
+import requests
+
+logger = logging.getLogger("gemini.proxy")
 
 
 def parse_proxy_setting(proxy_str: str) -> Tuple[str, str]:
@@ -220,3 +224,52 @@ def request_with_proxy_fallback(request_func: Callable, *args, **kwargs) -> Any:
         else:
             # 不是代理错误，直接抛出
             raise
+
+
+def fetch_proxy_from_pool(pool_url: str, timeout: int = 5) -> str:
+    """
+    从代理池 API 获取一个代理地址
+
+    Args:
+        pool_url: 代理池 API 地址，如 http://pool:5010/get
+        timeout: 请求超时时间（秒）
+
+    Returns:
+        str: 代理地址，如 http://ip:port，失败返回空字符串
+    """
+    if not pool_url:
+        return ""
+
+    try:
+        resp = requests.get(pool_url.strip(), timeout=timeout)
+        resp.raise_for_status()
+        proxy = resp.text.strip()
+        if proxy:
+            proxy = normalize_proxy_url(proxy)
+            logger.info(f"从代理池获取代理: {proxy}")
+            return proxy
+    except Exception as e:
+        logger.warning(f"从代理池获取代理失败: {e}")
+
+    return ""
+
+
+def resolve_auth_proxy(proxy_for_auth: str, proxy_pool_url: str) -> str:
+    """
+    解析账户操作代理：优先从代理池获取，失败则回退到静态代理
+
+    Args:
+        proxy_for_auth: 静态代理配置字符串
+        proxy_pool_url: 代理池 API 地址
+
+    Returns:
+        str: 代理地址
+    """
+    if proxy_pool_url:
+        pool_proxy = fetch_proxy_from_pool(proxy_pool_url)
+        if pool_proxy:
+            return pool_proxy
+        logger.warning("代理池获取失败，回退到静态代理配置")
+
+    proxy, _ = parse_proxy_setting(proxy_for_auth)
+    return proxy

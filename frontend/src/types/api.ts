@@ -75,6 +75,7 @@ export interface Settings {
     api_key?: string
     base_url?: string
     proxy_for_auth?: string
+    proxy_pool_url?: string
     proxy_for_chat?: string
     duckmail_base_url?: string
     duckmail_api_key?: string

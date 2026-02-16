@@ -55,6 +55,16 @@
                   placeholder="http://127.0.0.1:7890 | no_proxy=localhost,127.0.0.1"
                 />
                 <div class="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                  <span>代理池 API</span>
+                  <HelpTip text="代理池API地址，每次操作会从此API获取一个代理。优先于静态代理，留空则禁用" />
+                </div>
+                <input
+                  v-model="localSettings.basic.proxy_pool_url"
+                  type="text"
+                  class="w-full rounded-2xl border border-input bg-background px-3 py-2 text-sm"
+                  placeholder="http://127.0.0.1:5010/get"
+                />
+                <div class="flex items-center justify-between gap-2 text-xs text-muted-foreground">
                   <span>聊天操作代理</span>
                   <HelpTip text="用于 JWT/会话/消息操作的代理，留空则禁用" />
                 </div>
@@ -465,6 +475,9 @@ watch(settings, (value) => {
     ? next.basic.freemail_domain
     : ''
   next.basic.mail_proxy_enabled = next.basic.mail_proxy_enabled ?? false
+  next.basic.proxy_pool_url = typeof next.basic.proxy_pool_url === 'string'
+    ? next.basic.proxy_pool_url
+    : ''
   next.basic.gptmail_base_url = next.basic.gptmail_base_url || 'https://mail.chatgpt.org.uk'
   next.basic.gptmail_api_key = typeof next.basic.gptmail_api_key === 'string'
     ? next.basic.gptmail_api_key
