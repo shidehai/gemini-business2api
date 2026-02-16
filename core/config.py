@@ -106,6 +106,7 @@ class RetryConfig(BaseModel):
     # 定时刷新配置
     scheduled_refresh_enabled: bool = Field(default=False, description="是否启用定时刷新任务")
     scheduled_refresh_interval_minutes: int = Field(default=30, ge=0, le=720, description="定时刷新检测间隔（分钟，0-12小时）")
+    scheduled_refresh_max_accounts: int = Field(default=20, ge=1, le=500, description="每轮定时刷新最多处理账号数")
 
 class PublicDisplayConfig(BaseModel):
     """公开展示配置"""

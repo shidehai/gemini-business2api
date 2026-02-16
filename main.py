@@ -1484,7 +1484,8 @@ async def admin_get_settings(request: Request):
             "session_cache_ttl_seconds": config.retry.session_cache_ttl_seconds,
             "auto_refresh_accounts_seconds": config.retry.auto_refresh_accounts_seconds,
             "scheduled_refresh_enabled": config.retry.scheduled_refresh_enabled,
-            "scheduled_refresh_interval_minutes": config.retry.scheduled_refresh_interval_minutes
+            "scheduled_refresh_interval_minutes": config.retry.scheduled_refresh_interval_minutes,
+            "scheduled_refresh_max_accounts": config.retry.scheduled_refresh_max_accounts
         },
         "public_display": {
             "logo_url": config.public_display.logo_url,
@@ -1557,6 +1558,7 @@ async def admin_update_settings(request: Request, new_settings: dict = Body(...)
         retry.setdefault("auto_refresh_accounts_seconds", config.retry.auto_refresh_accounts_seconds)
         retry.setdefault("scheduled_refresh_enabled", config.retry.scheduled_refresh_enabled)
         retry.setdefault("scheduled_refresh_interval_minutes", config.retry.scheduled_refresh_interval_minutes)
+        retry.setdefault("scheduled_refresh_max_accounts", config.retry.scheduled_refresh_max_accounts)
         retry.setdefault("text_rate_limit_cooldown_seconds", config.retry.text_rate_limit_cooldown_seconds)
         retry.setdefault("images_rate_limit_cooldown_seconds", config.retry.images_rate_limit_cooldown_seconds)
         retry.setdefault("videos_rate_limit_cooldown_seconds", config.retry.videos_rate_limit_cooldown_seconds)

@@ -808,6 +808,20 @@
                     </div>
 
                     <div class="space-y-2">
+                      <label class="block text-xs text-muted-foreground">每轮最大刷新账号数</label>
+                      <input
+                        v-model.number="scheduledRefreshMaxAccounts"
+                        type="number"
+                        min="1"
+                        max="500"
+                        class="w-full rounded-2xl border border-input bg-background px-3 py-2 text-sm"
+                      />
+                      <p class="text-xs text-muted-foreground">
+                        实际刷新数量 = min(符合条件账号数, 此配置值)
+                      </p>
+                    </div>
+
+                    <div class="space-y-2">
                       <label class="block text-xs text-muted-foreground">过期刷新窗口（小时）</label>
                       <input
                         v-model.number="refreshWindowHours"
@@ -1203,6 +1217,7 @@ const lastRegisterTaskId = ref<string | null>(null)
 const lastLoginTaskId = ref<string | null>(null)
 const scheduledRefreshEnabled = ref(false)
 const scheduledRefreshInterval = ref(30)
+const scheduledRefreshMaxAccounts = ref(20)
 const refreshWindowHours = ref(24)
 const isLoadingScheduledConfig = ref(false)
 const isSavingScheduledConfig = ref(false)
@@ -2045,6 +2060,7 @@ const loadScheduledConfig = async () => {
     cachedSettings.value = settings  // 缓存配置
     scheduledRefreshEnabled.value = settings.retry.scheduled_refresh_enabled ?? false
     scheduledRefreshInterval.value = settings.retry.scheduled_refresh_interval_minutes ?? 30
+    scheduledRefreshMaxAccounts.value = settings.retry.scheduled_refresh_max_accounts ?? 20
     refreshWindowHours.value = settings.basic.refresh_window_hours ?? 24
   } catch (error: any) {
     toast.error(error?.message || '加载定时任务配置失败')
@@ -2064,6 +2080,16 @@ const saveScheduledConfig = async () => {
     return
   }
 
+  // 验证每轮最大刷新账号数
+  if (isNaN(scheduledRefreshMaxAccounts.value) || !Number.isInteger(scheduledRefreshMaxAccounts.value)) {
+    toast.error('每轮最大刷新账号数必须是有效的整数')
+    return
+  }
+  if (scheduledRefreshMaxAccounts.value < 1 || scheduledRefreshMaxAccounts.value > 500) {
+    toast.error('每轮最大刷新账号数必须在 1-500 之间')
+    return
+  }
+
   // 验证过期刷新窗口
   if (isNaN(refreshWindowHours.value) || !Number.isInteger(refreshWindowHours.value)) {
     toast.error('过期刷新窗口必须是有效的整数')
@@ -2080,6 +2106,7 @@ const saveScheduledConfig = async () => {
     const settings = cachedSettings.value || await settingsApi.get()
     settings.retry.scheduled_refresh_enabled = scheduledRefreshEnabled.value
     settings.retry.scheduled_refresh_interval_minutes = scheduledRefreshInterval.value
+    settings.retry.scheduled_refresh_max_accounts = scheduledRefreshMaxAccounts.value
     settings.basic.refresh_window_hours = refreshWindowHours.value
     await settingsApi.update(settings)
     cachedSettings.value = settings  // 更新缓存

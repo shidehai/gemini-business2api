@@ -109,6 +109,7 @@ export interface Settings {
     auto_refresh_accounts_seconds: number
     scheduled_refresh_enabled?: boolean
     scheduled_refresh_interval_minutes?: number
+    scheduled_refresh_max_accounts?: number
   }
   public_display: {
     logo_url?: string

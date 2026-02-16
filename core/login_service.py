@@ -14,6 +14,7 @@ from core.mail_providers import create_temp_mail_client
 from core.gemini_automation import GeminiAutomation
 from core.microsoft_mail_client import MicrosoftMailClient
 from core.proxy_utils import parse_proxy_setting, resolve_auth_proxy
+from core.scheduled_refresh_selector import select_scheduled_refresh_accounts
 
 logger = logging.getLogger("gemini.login")
 
@@ -57,6 +58,7 @@ class LoginService(BaseTaskService[LoginTask]):
             log_prefix="REFRESH",
         )
         self._is_polling = False
+        self._scheduled_refresh_cursor = 0
 
     def _get_running_task(self) -> Optional[LoginTask]:
         """获取正在运行或等待中的任务"""
@@ -364,8 +366,25 @@ class LoginService(BaseTaskService[LoginTask]):
             logger.debug("[LOGIN] no accounts need refresh")
             return None
 
+        max_accounts = config.retry.scheduled_refresh_max_accounts
+        target_accounts, next_cursor = select_scheduled_refresh_accounts(
+            expiring_accounts,
+            max_accounts,
+            self._scheduled_refresh_cursor,
+        )
+        self._scheduled_refresh_cursor = next_cursor
+
+        if len(expiring_accounts) > len(target_accounts):
+            logger.info(
+                "[LOGIN] expiring accounts=%d, selected=%d (max=%d, next_cursor=%d)",
+                len(expiring_accounts),
+                len(target_accounts),
+                max_accounts,
+                self._scheduled_refresh_cursor,
+            )
+
         try:
-            return await self.start_login(expiring_accounts)
+            return await self.start_login(target_accounts)
         except Exception as exc:
             logger.warning("[LOGIN] refresh enqueue failed: %s", exc)
             return None
