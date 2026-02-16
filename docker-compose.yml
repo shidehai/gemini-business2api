@@ -1,3 +1,5 @@
+name: gemini-local
+
 services:
   gemini-api:
     build:
