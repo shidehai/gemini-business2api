@@ -513,6 +513,8 @@ multi_account_mgr = load_multi_account_config(
 # ---------- 自动注册/刷新服务 ----------
 register_service = None
 login_service = None
+RegisterService = None
+LoginService = None
 
 def _set_multi_account_mgr(new_mgr):
     global multi_account_mgr
@@ -527,29 +529,45 @@ def _get_global_stats():
 
 try:
     from core.register_service import RegisterService
-    from core.login_service import LoginService
-    register_service = RegisterService(
-        multi_account_mgr,
-        http_client_auth,
-        USER_AGENT,
-        RETRY_POLICY,
-        SESSION_CACHE_TTL_SECONDS,
-        _get_global_stats,
-        _set_multi_account_mgr,
-    )
-    login_service = LoginService(
-        multi_account_mgr,
-        http_client_auth,
-        USER_AGENT,
-        RETRY_POLICY,
-        SESSION_CACHE_TTL_SECONDS,
-        _get_global_stats,
-        _set_multi_account_mgr,
-    )
 except Exception as e:
-    logger.warning("[SYSTEM] 自动注册/刷新服务不可用: %s", e)
+    logger.warning("[SYSTEM] 自动注册服务不可用: %s", e)
     register_service = None
+
+try:
+    from core.login_service import LoginService
+except Exception as e:
+    logger.warning("[SYSTEM] 自动刷新服务不可用: %s", e)
     login_service = None
+
+if RegisterService:
+    try:
+        register_service = RegisterService(
+            multi_account_mgr,
+            http_client_auth,
+            USER_AGENT,
+            RETRY_POLICY,
+            SESSION_CACHE_TTL_SECONDS,
+            _get_global_stats,
+            _set_multi_account_mgr,
+        )
+    except Exception as e:
+        logger.warning("[SYSTEM] 自动注册服务初始化失败: %s", e)
+        register_service = None
+
+if LoginService:
+    try:
+        login_service = LoginService(
+            multi_account_mgr,
+            http_client_auth,
+            USER_AGENT,
+            RETRY_POLICY,
+            SESSION_CACHE_TTL_SECONDS,
+            _get_global_stats,
+            _set_multi_account_mgr,
+        )
+    except Exception as e:
+        logger.warning("[SYSTEM] 自动刷新服务初始化失败: %s", e)
+        login_service = None
 
 # 验证必需的环境变量
 if not ADMIN_KEY:

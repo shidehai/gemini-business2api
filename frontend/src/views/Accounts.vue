@@ -632,7 +632,7 @@
             type="button"
             class="relative px-4 py-3 text-sm font-medium transition-colors"
             :class="activeTaskTab === 'scheduled' ? 'text-primary' : 'text-muted-foreground hover:text-foreground'"
-            @click="activeTaskTab = 'scheduled'; loadScheduledConfig()"
+            @click="activeTaskTab = 'scheduled'"
           >
             定时任务
             <span
@@ -784,6 +784,7 @@
                         type="button"
                         class="relative inline-flex h-5 w-10 items-center rounded-full transition-colors"
                         :class="scheduledRefreshEnabled ? 'bg-primary' : 'bg-muted'"
+                        :disabled="isLoadingScheduledConfig || isSavingScheduledConfig"
                         @click="scheduledRefreshEnabled = !scheduledRefreshEnabled"
                       >
                         <span
@@ -798,12 +799,13 @@
                       <input
                         v-model.number="scheduledRefreshInterval"
                         type="number"
-                        min="0"
+                        min="1"
                         max="720"
+                        :disabled="isLoadingScheduledConfig || isSavingScheduledConfig"
                         class="w-full rounded-2xl border border-input bg-background px-3 py-2 text-sm"
                       />
                       <p class="text-xs text-muted-foreground">
-                        范围：0-720 分钟（{{ Math.floor(scheduledRefreshInterval / 60) }} 小时 {{ scheduledRefreshInterval % 60 }} 分钟）
+                        范围：1-720 分钟（{{ Math.floor(scheduledRefreshInterval / 60) }} 小时 {{ scheduledRefreshInterval % 60 }} 分钟）
                       </p>
                     </div>
 
@@ -814,6 +816,7 @@
                         type="number"
                         min="1"
                         max="500"
+                        :disabled="isLoadingScheduledConfig || isSavingScheduledConfig"
                         class="w-full rounded-2xl border border-input bg-background px-3 py-2 text-sm"
                       />
                       <p class="text-xs text-muted-foreground">
@@ -827,7 +830,8 @@
                         v-model.number="refreshWindowHours"
                         type="number"
                         min="1"
-                        max="168"
+                        max="24"
+                        :disabled="isLoadingScheduledConfig || isSavingScheduledConfig"
                         class="w-full rounded-2xl border border-input bg-background px-3 py-2 text-sm"
                       />
                       <p class="text-xs text-muted-foreground">
@@ -853,6 +857,7 @@
               <button
                 class="rounded-full border border-border px-4 py-2 text-sm text-muted-foreground transition-colors
                        hover:border-primary hover:text-primary"
+                :disabled="isLoadingScheduledConfig || isSavingScheduledConfig"
                 @click="loadScheduledConfig"
               >
                 重置
@@ -860,7 +865,7 @@
               <button
                 class="rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-opacity
                        hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-                :disabled="isSavingScheduledConfig"
+                :disabled="isLoadingScheduledConfig || isSavingScheduledConfig"
                 @click="saveScheduledConfig"
               >
                 保存配置
@@ -1222,6 +1227,7 @@ const refreshWindowHours = ref(24)
 const isLoadingScheduledConfig = ref(false)
 const isSavingScheduledConfig = ref(false)
 const cachedSettings = ref<any>(null)  // 缓存配置以避免重复API调用
+let scheduledConfigRequestId = 0
 const taskHistory = ref<any[]>([])  // 任务历史记录
 const isLoadingHistory = ref(false)  // 加载历史记录状态
 type TaskLogLine = { time: string; level: string; message: string }
@@ -2054,29 +2060,42 @@ const closeTaskModal = () => {
 }
 
 const loadScheduledConfig = async () => {
+  const requestId = ++scheduledConfigRequestId
   isLoadingScheduledConfig.value = true
   try {
     const settings = await settingsApi.get()
+    if (requestId !== scheduledConfigRequestId) return
     cachedSettings.value = settings  // 缓存配置
-    scheduledRefreshEnabled.value = settings.retry.scheduled_refresh_enabled ?? false
-    scheduledRefreshInterval.value = settings.retry.scheduled_refresh_interval_minutes ?? 30
-    scheduledRefreshMaxAccounts.value = settings.retry.scheduled_refresh_max_accounts ?? 20
-    refreshWindowHours.value = settings.basic.refresh_window_hours ?? 24
+    scheduledRefreshEnabled.value = settings.retry?.scheduled_refresh_enabled ?? false
+    const interval = settings.retry?.scheduled_refresh_interval_minutes ?? 30
+    const maxAccounts = settings.retry?.scheduled_refresh_max_accounts ?? 20
+    const refreshWindow = settings.basic?.refresh_window_hours ?? 24
+    scheduledRefreshInterval.value = Math.min(720, Math.max(1, interval))
+    scheduledRefreshMaxAccounts.value = Math.min(500, Math.max(1, maxAccounts))
+    refreshWindowHours.value = Math.min(24, Math.max(1, refreshWindow))
   } catch (error: any) {
+    if (requestId !== scheduledConfigRequestId) return
+    cachedSettings.value = null
     toast.error(error?.message || '加载定时任务配置失败')
   } finally {
+    if (requestId !== scheduledConfigRequestId) return
     isLoadingScheduledConfig.value = false
   }
 }
 
 const saveScheduledConfig = async () => {
+  if (isLoadingScheduledConfig.value) {
+    toast.error('配置仍在加载中，请稍后再试')
+    return
+  }
+
   // 验证检测间隔
   if (isNaN(scheduledRefreshInterval.value) || !Number.isInteger(scheduledRefreshInterval.value)) {
     toast.error('检测间隔必须是有效的整数')
     return
   }
-  if (scheduledRefreshInterval.value < 0 || scheduledRefreshInterval.value > 720) {
-    toast.error('检测间隔必须在 0-720 分钟之间（0-12 小时）')
+  if (scheduledRefreshInterval.value < 1 || scheduledRefreshInterval.value > 720) {
+    toast.error('检测间隔必须在 1-720 分钟之间（1-12 小时）')
     return
   }
 
@@ -2095,15 +2114,17 @@ const saveScheduledConfig = async () => {
     toast.error('过期刷新窗口必须是有效的整数')
     return
   }
-  if (refreshWindowHours.value < 1 || refreshWindowHours.value > 168) {
-    toast.error('过期刷新窗口必须在 1-168 小时之间')
+  if (refreshWindowHours.value < 1 || refreshWindowHours.value > 24) {
+    toast.error('过期刷新窗口必须在 1-24 小时之间')
     return
   }
 
   isSavingScheduledConfig.value = true
   try {
-    // 使用缓存的配置，避免重复API调用
-    const settings = cachedSettings.value || await settingsApi.get()
+    // 保存前拉取最新配置，避免使用过期缓存覆盖其它字段
+    const settings = await settingsApi.get()
+    settings.retry = settings.retry || ({} as any)
+    settings.basic = settings.basic || ({} as any)
     settings.retry.scheduled_refresh_enabled = scheduledRefreshEnabled.value
     settings.retry.scheduled_refresh_interval_minutes = scheduledRefreshInterval.value
     settings.retry.scheduled_refresh_max_accounts = scheduledRefreshMaxAccounts.value

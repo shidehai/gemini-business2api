@@ -11,7 +11,6 @@ from core.account import load_accounts_from_source
 from core.base_task_service import BaseTask, BaseTaskService, TaskCancelledError, TaskStatus
 from core.config import config
 from core.mail_providers import create_temp_mail_client
-from core.gemini_automation import GeminiAutomation
 from core.microsoft_mail_client import MicrosoftMailClient
 from core.proxy_utils import parse_proxy_setting, resolve_auth_proxy
 from core.scheduled_refresh_selector import select_scheduled_refresh_accounts
@@ -252,6 +251,13 @@ class LoginService(BaseTaskService[LoginTask]):
 
         log_cb("info", f"🌐 启动浏览器 (无头模式={headless})...")
 
+        try:
+            from core.gemini_automation import GeminiAutomation
+        except Exception as exc:
+            error_message = f"自动化依赖不可用: {exc}"
+            log_cb("error", f"❌ {error_message}")
+            return {"success": False, "email": account_id, "error": error_message}
+
         automation = GeminiAutomation(
             user_agent=self.user_agent,
             proxy=proxy_for_auth,
@@ -334,7 +340,7 @@ class LoginService(BaseTaskService[LoginTask]):
                 if not mail_password:
                     continue
             elif mail_provider == "freemail":
-                if not config.basic.freemail_jwt_token:
+                if not account.get("mail_jwt_token") and not config.basic.freemail_jwt_token:
                     continue
             elif mail_provider == "gptmail":
                 # GPTMail 不需要密码，允许直接刷新
@@ -408,8 +414,17 @@ class LoginService(BaseTaskService[LoginTask]):
                 await self.check_and_refresh()
 
                 # 使用配置的间隔时间
-                interval_seconds = config.retry.scheduled_refresh_interval_minutes * 60
-                logger.debug(f"[LOGIN] next check in {config.retry.scheduled_refresh_interval_minutes} minutes")
+                interval_minutes = config.retry.scheduled_refresh_interval_minutes
+                if interval_minutes <= 0:
+                    interval_seconds = CONFIG_CHECK_INTERVAL_SECONDS
+                    logger.warning(
+                        "[LOGIN] invalid scheduled_refresh_interval_minutes=%s, fallback to %s seconds",
+                        interval_minutes,
+                        interval_seconds,
+                    )
+                else:
+                    interval_seconds = interval_minutes * 60
+                    logger.debug(f"[LOGIN] next check in {interval_minutes} minutes")
                 await asyncio.sleep(interval_seconds)
         except asyncio.CancelledError:
             logger.info("[LOGIN] polling stopped")
